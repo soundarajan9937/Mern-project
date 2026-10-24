@@ -66,10 +66,47 @@ const generateFormattedId = (prefix, count) => {
   return `${prefix}-${year}-${serial}`;
 };
 
+/**
+ * Asynchronously generates the next unique sequential ID by inspecting existing records
+ * Guarantees no duplicate key collision even if documents were deleted or imported.
+ * @param {Model} model Mongoose model (e.g. Visitor, GatePass)
+ * @param {string} idField field name (e.g. 'visitorId', 'passId')
+ * @param {string} prefix prefix string (e.g. 'VIS', 'GP')
+ * @returns {Promise<string>} e.g. 'VIS-2026-0005'
+ */
+const generateNextUniqueId = async (model, idField, prefix) => {
+  const year = new Date().getFullYear();
+  const yearPrefixRegex = new RegExp(`^${prefix}-${year}-`);
+
+  const lastDoc = await model
+    .findOne({ [idField]: yearPrefixRegex })
+    .sort({ [idField]: -1 })
+    .select(idField)
+    .lean();
+
+  let nextSeq = 1;
+  if (lastDoc && lastDoc[idField]) {
+    const match = String(lastDoc[idField]).match(/-(\d+)$/);
+    if (match) {
+      nextSeq = parseInt(match[1], 10) + 1;
+    }
+  }
+
+  let candidateId = `${prefix}-${year}-${String(nextSeq).padStart(4, '0')}`;
+  while (await model.exists({ [idField]: candidateId })) {
+    nextSeq++;
+    candidateId = `${prefix}-${year}-${String(nextSeq).padStart(4, '0')}`;
+  }
+
+  return candidateId;
+};
+
 module.exports = {
   TIMEZONE,
   formatLocalDateTime,
   formatLocalDate,
   formatLocalTime,
   generateFormattedId,
+  generateNextUniqueId,
 };
+

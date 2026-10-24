@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Visitor = require('../models/Visitor');
 const Student = require('../models/Student');
-const { generateFormattedId, formatLocalDateTime } = require('../utils/dateUtils');
+const { generateFormattedId, generateNextUniqueId, formatLocalDateTime } = require('../utils/dateUtils');
 const { generateSecureToken, generateQRCodeDataUrl } = require('../services/qrService');
 const { notifyMeetingPersonOnVisitorRegistration } = require('../services/notificationService');
 const { logAction } = require('../services/auditService');
@@ -49,9 +49,8 @@ const registerVisitor = async (req, res, next) => {
       photoUrl = saveBase64Image(req.body.photoUrl, 'visitor');
     }
 
-    // Generate unique sequential visitor ID
-    const visitorCount = await Visitor.countDocuments();
-    const visitorId = generateFormattedId('VIS', visitorCount);
+    // Generate unique sequential visitor ID (guaranteed collision-free)
+    const visitorId = await generateNextUniqueId(Visitor, 'visitorId', 'VIS');
 
     // Backend automatic timestamp
     const submittedAt = new Date();

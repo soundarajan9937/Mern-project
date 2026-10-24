@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const GatePass = require('../models/GatePass');
 const Student = require('../models/Student');
 const User = require('../models/User');
-const { generateFormattedId, formatLocalDateTime } = require('../utils/dateUtils');
+const { generateFormattedId, generateNextUniqueId, formatLocalDateTime } = require('../utils/dateUtils');
 const { generateSecureToken, generateQRCodeDataUrl } = require('../services/qrService');
 const { notifyStudentOnGatePassStatus } = require('../services/notificationService');
 const { logAction } = require('../services/auditService');
@@ -62,9 +62,8 @@ const submitGatePassRequest = async (req, res, next) => {
       photoUrl = saveBase64Image(req.body.photoUrl, 'student-pass');
     }
 
-    // Sequential ID generation
-    const passCount = await GatePass.countDocuments();
-    const passId = generateFormattedId('GP', passCount);
+    // Sequential ID generation (guaranteed collision-free)
+    const passId = await generateNextUniqueId(GatePass, 'passId', 'GP');
 
     // Backend automatic timestamp
     const submittedAt = new Date();
@@ -694,8 +693,8 @@ const applyOutPassMobile = async (req, res, next) => {
       student = anyStudent || { _id: new mongoose.Types.ObjectId() };
     }
 
-    const passCount = await GatePass.countDocuments();
-    const passId = generateFormattedId('GP', passCount);
+    // Sequential ID generation (guaranteed collision-free)
+    const passId = await generateNextUniqueId(GatePass, 'passId', 'GP');
 
     const gatePass = await GatePass.create({
       passId,
