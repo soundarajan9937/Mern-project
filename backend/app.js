@@ -77,9 +77,13 @@ app.use('/api/visitors', visitorRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // Serve frontend build if available
-const frontendDist = path.join(__dirname, '../frontend/dist');
+const candidatePaths = [
+  path.join(__dirname, 'client_dist'),
+  path.join(__dirname, '../frontend/dist'),
+];
+const frontendDist = candidatePaths.find((p) => fs.existsSync(p));
 
-if (fs.existsSync(frontendDist)) {
+if (frontendDist) {
   app.use(express.static(frontendDist));
 
   app.get('*', (req, res, next) => {

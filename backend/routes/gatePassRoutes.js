@@ -12,9 +12,13 @@ const {
   getGatePassPublicStatus,
   deleteGatePass,
   recordStudentReturn,
+  getNetworkInfo,
 } = require('../controllers/gatePassController');
 const { protect, authorize, optionalProtect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
+
+// Dynamic Network IP and info for mobile QR code access
+router.get('/network-info', getNetworkInfo);
 
 // Mobile Out Pass Application & Real-time Public Status
 router.post(

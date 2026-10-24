@@ -310,22 +310,7 @@ const updateGatePassStatus = async (req, res, next) => {
       gatePass.qrToken = qrToken;
 
       // Construct direct verification URL with LAN IP so student's mobile phone can connect across Wi-Fi
-      let lanIp = process.env.VITE_HOST_IP || process.env.HOST_IP || '10.116.232.78';
-      if (!lanIp) {
-        try {
-          const os = require('os');
-          const ifaces = os.networkInterfaces();
-          for (let dev in ifaces) {
-            for (let details of ifaces[dev]) {
-              if (details.family === 'IPv4' && !details.internal) {
-                lanIp = details.address;
-                break;
-              }
-            }
-            if (lanIp) break;
-          }
-        } catch (e) {}
-      }
+      let lanIp = process.env.VITE_HOST_IP || process.env.HOST_IP || getLocalLanIp();
 
       const host = req.get('host') || 'localhost:5000';
       const protocol = req.protocol === 'https' ? 'https' : 'http';
@@ -840,6 +825,49 @@ const deleteGatePass = async (req, res, next) => {
   }
 };
 
+const getLocalLanIp = () => {
+  try {
+    const os = require('os');
+    const ifaces = os.networkInterfaces();
+    for (let dev in ifaces) {
+      for (let details of ifaces[dev]) {
+        if (details.family === 'IPv4' && !details.internal && !details.address.startsWith('127.')) {
+          return details.address;
+        }
+      }
+    }
+  } catch (e) {}
+  return null;
+};
+
+// @desc    Get dynamic network info (LAN IP / URLs) for mobile QR generation
+// @route   GET /api/gatepasses/network-info
+// @access  Public
+const getNetworkInfo = async (req, res) => {
+  try {
+    const detectedIp = getLocalLanIp();
+    const configuredIp = process.env.VITE_HOST_IP || process.env.HOST_IP;
+    const lanIp = configuredIp || detectedIp || 'localhost';
+
+    const host = req.get('host') || 'localhost:5000';
+    const protocol = req.protocol === 'https' ? 'https' : 'http';
+    let frontendHost = host.includes(':5000') ? host.replace(':5000', ':5173') : host;
+    if ((frontendHost.includes('localhost') || frontendHost.includes('127.0.0.1')) && lanIp !== 'localhost') {
+      frontendHost = `${lanIp}:5173`;
+    }
+
+    res.json({
+      success: true,
+      lanIp,
+      detectedIp,
+      networkUrl: `${protocol}://${frontendHost}`,
+      clientUrl: process.env.CLIENT_URL || process.env.FRONTEND_URL || null,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   submitGatePassRequest,
   getMyGatePasses,
@@ -852,5 +880,6 @@ module.exports = {
   getGatePassPublicStatus,
   deleteGatePass,
   recordStudentReturn,
+  getNetworkInfo,
 };
 

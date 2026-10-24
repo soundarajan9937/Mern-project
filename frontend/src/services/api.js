@@ -101,6 +101,7 @@ export const gatePassAPI = {
     API.get('/gatepasses/search-student', {
       params: { query },
     }),
+  getNetworkInfo: () => API.get('/gatepasses/network-info'),
   delete: (id) => API.delete(`/gatepasses/${id}`),
 };
 

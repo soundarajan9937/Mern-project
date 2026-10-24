@@ -469,6 +469,27 @@ function StudentDetailsModal({ pass, onClose, onOpenQR, onPreviewPhoto }) {
   );
 }
 
+// ─── Universal Base URL Resolver for Mobile QR Codes ─────────────────────────
+function getUniversalQrBaseUrl() {
+  const custom = localStorage.getItem('qr_custom_host');
+  if (custom && custom.trim()) {
+    let clean = custom.trim().replace(/\/+$/, '');
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+      clean = `${window.location.protocol}//${clean}`;
+    }
+    return clean;
+  }
+  const hostname = window.location.hostname;
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return window.location.origin;
+  }
+  return (
+    import.meta.env.VITE_PUBLIC_URL ||
+    (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') : '') ||
+    'https://smart-leaving-backend.onrender.com'
+  );
+}
+
 // ─── Digital QR Pass Modal (STUDENT NAME ON TOP OF QR) ─────────────────────────
 function PassQRModal({ pass, onClose }) {
   if (!pass) return null;
@@ -478,13 +499,8 @@ function PassQRModal({ pass, onClose }) {
   const studentName = pass.studentDetails?.fullName || pass.student?.fullName || 'Student';
   const rollNumber = pass.studentDetails?.rollNumber || '';
 
-  const hostname = window.location.hostname;
-  const hostIp = import.meta.env.VITE_HOST_IP || '10.116.232.78';
-  const host = (hostname === 'localhost' || hostname === '127.0.0.1') && hostIp
-    ? hostIp
-    : hostname;
-  const port = window.location.port ? `:${window.location.port}` : '';
-  const verifyUrl = `${window.location.protocol}//${host}${port}/verify-outpass?passId=${encodeURIComponent(pass.passId)}${pass.qrToken ? `&token=${encodeURIComponent(pass.qrToken)}` : ''}`;
+  const baseUrl = getUniversalQrBaseUrl();
+  const verifyUrl = `${baseUrl}/verify-outpass?passId=${encodeURIComponent(pass.passId)}${pass.qrToken ? `&token=${encodeURIComponent(pass.qrToken)}` : ''}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -589,13 +605,8 @@ function PassQRModal({ pass, onClose }) {
 function PassCardQRCode({ pass, onClick }) {
   const [qrSrc, setQrSrc] = useState(pass.qrCodeDataUrl || '');
 
-  const hostname = window.location.hostname;
-  const hostIp = import.meta.env.VITE_HOST_IP || '10.116.232.78';
-  const host = (hostname === 'localhost' || hostname === '127.0.0.1') && hostIp
-    ? hostIp
-    : hostname;
-  const port = window.location.port ? `:${window.location.port}` : '';
-  const verifyUrl = `${window.location.protocol}//${host}${port}/verify-outpass?passId=${encodeURIComponent(pass.passId)}${pass.qrToken ? `&token=${encodeURIComponent(pass.qrToken)}` : ''}`;
+  const baseUrl = getUniversalQrBaseUrl();
+  const verifyUrl = `${baseUrl}/verify-outpass?passId=${encodeURIComponent(pass.passId)}${pass.qrToken ? `&token=${encodeURIComponent(pass.qrToken)}` : ''}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -734,16 +745,24 @@ function QRLauncherPage({ user }) {
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [qrLoading, setQrLoading] = useState(true);
 
-  // Determine base host for QR code – use VITE_HOST_IP env var if running on localhost
-  const hostname = window.location.hostname;
-  const hostIp = import.meta.env.VITE_HOST_IP;
-  const host = (hostname === 'localhost' || hostname === '127.0.0.1') && hostIp
-    ? hostIp
-    : hostname;
-  const applyUrl = `${window.location.protocol}//${host}:${window.location.port}/apply-outpass${user ? `?name=${encodeURIComponent(user.name || '')}` : ''}`;
+  // Compute active base URL for QR code (works on any mobile & any network without local IP)
+  const activeBaseUrl = useMemo(() => {
+    const hostname = window.location.hostname;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return window.location.origin;
+    }
+    return (
+      import.meta.env.VITE_PUBLIC_URL ||
+      (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') : '') ||
+      'https://smart-leaving-backend.onrender.com'
+    );
+  }, []);
+
+  const applyUrl = `${activeBaseUrl}/apply-outpass${user ? `?name=${encodeURIComponent(user.name || '')}` : ''}`;
 
   useEffect(() => {
     let cancelled = false;
+    setQrLoading(true);
     const generateQR = async () => {
       try {
         const QRCode = await import('qrcode');
@@ -779,8 +798,8 @@ function QRLauncherPage({ user }) {
           boxShadow: '0 6px 20px rgba(37,99,235,0.35)'
         }}>🎓</div>
         <h2 style={{ fontSize: '1.4rem', marginBottom: 8 }}>New Gate Pass Request</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: 420, margin: '0 auto 24px' }}>
-          Scan the QR code below with your <strong>mobile phone</strong> to open the Out Pass form — it will let you take a live photo and fill all your details.
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: 460, margin: '0 auto 24px' }}>
+          Scan the QR code below with <strong>any mobile phone</strong> camera to open the Out Pass application directly.
         </p>
 
         {/* QR Code Box */}
@@ -790,7 +809,7 @@ function QRLauncherPage({ user }) {
           borderRadius: 18,
           display: 'inline-block',
           boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
-          marginBottom: 24,
+          marginBottom: 26,
           position: 'relative',
         }}>
           {qrLoading ? (
@@ -812,7 +831,7 @@ function QRLauncherPage({ user }) {
           flexWrap: 'wrap', marginBottom: 28
         }}>
           {[
-            { icon: '📱', step: '1', text: 'Scan with your phone camera' },
+            { icon: '📱', step: '1', text: 'Scan with any phone camera' },
             { icon: '📸', step: '2', text: 'Take student photo on mobile' },
             { icon: '📝', step: '3', text: 'Fill all required details' },
             { icon: '🚀', step: '4', text: 'Click Get Out Pass' },
