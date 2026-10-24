@@ -1,18 +1,14 @@
 
 import axios from 'axios';
 
-// Backend URL from the frontend .env file
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-if (!API_BASE_URL) {
-  console.error(
-    'VITE_API_URL is missing. Add it to your frontend .env file.'
-  );
-}
+// Backend URL: use env variable, or fallback to current origin (when served by backend)
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : '');
 
 // Axios instance connected to the deployed backend
 const API = axios.create({
-  baseURL: `${API_BASE_URL?.replace(/\/+$/, '')}/api`,
+  baseURL: `${API_BASE_URL ? API_BASE_URL.replace(/\/+$/, '') : ''}/api`,
   timeout: 30000,
   withCredentials: true,
   headers: {

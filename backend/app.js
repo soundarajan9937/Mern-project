@@ -17,34 +17,10 @@ const app = express();
 // Trust proxy for Render / load balancers
 app.set('trust proxy', 1);
 
-// Allowed frontend origins
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  process.env.CLIENT_URL,
-].filter(Boolean);
-
-// CORS configuration
+// CORS configuration - dynamically reflect request origin so any mobile phone, local host, or production client can connect seamlessly
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow requests without an Origin header
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      // Allow configured frontend origins
-      if (
-        allowedOrigins.includes(origin) ||
-        process.env.NODE_ENV !== 'production'
-      ) {
-        return callback(null, true);
-      }
-
-      return callback(
-        new Error('CORS policy does not allow access from this origin.')
-      );
-    },
+    origin: true,
     credentials: true,
   })
 );
