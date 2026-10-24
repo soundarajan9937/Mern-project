@@ -1,0 +1,21 @@
+{
+  "name": "smart-leaving-and-visitor-entry-management-system",
+  "version": "1.0.0",
+  "description": "Smart Leaving and Visitor Entry Management System - MERN Stack",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "server": "npm --prefix backend run dev",
+    "client": "npm --prefix frontend run dev",
+    "seed": "npm --prefix backend run seed",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix backend start"
+  },
+  "keywords": [
+    "mern",
+    "college-gate-pass",
+    "visitor-management",
+    "qr-verification"
+  ],
+  "author": "",
+  "license": "ISC"
+}
