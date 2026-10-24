@@ -1,19 +1,38 @@
+
 import axios from 'axios';
 
+// Backend URL from the frontend .env file
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+if (!API_BASE_URL) {
+  console.error(
+    'VITE_API_URL is missing. Add it to your frontend .env file.'
+  );
+}
+
+// Axios instance connected to the deployed backend
 const API = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_BASE_URL?.replace(/\/+$/, '')}/api`,
   timeout: 30000,
   withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 // Attach JWT token to every request
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+API.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // Global response error handler
 API.interceptors.response.use(
@@ -25,17 +44,25 @@ API.interceptors.response.use(
       'An unexpected error occurred';
 
     if (error?.response?.status === 401) {
-      // Do not auto-redirect if on public pages like /apply-outpass or /visitor-status
-      if (
-        window.location.pathname.startsWith('/apply-outpass') ||
-        window.location.pathname.startsWith('/visitor-registration') ||
-        window.location.pathname.startsWith('/visitor-status')
-      ) {
+      // Keep public pages accessible without automatic logout
+      const publicPaths = [
+        '/apply-outpass',
+        '/visitor-registration',
+        '/visitor-status',
+      ];
+
+      const isPublicPage = publicPaths.some((path) =>
+        window.location.pathname.startsWith(path)
+      );
+
+      if (isPublicPage) {
         return Promise.reject({ ...error, message });
       }
-      // Auto-logout on token expiry
+
+      // Clear expired or invalid login information
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
@@ -45,7 +72,7 @@ API.interceptors.response.use(
   }
 );
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
+// ─── Authentication ───────────────────────────────────────────────
 export const authAPI = {
   login: (data) => API.post('/auth/login', data),
   registerStudent: (data) => API.post('/auth/register-student', data),
@@ -54,40 +81,52 @@ export const authAPI = {
   changePassword: (data) => API.put('/auth/change-password', data),
 };
 
-// ─── Gate Passes ─────────────────────────────────────────────────────────────
+// ─── Student Gate Passes ──────────────────────────────────────────
 export const gatePassAPI = {
   submit: (data) => API.post('/gatepasses', data),
   applyMobile: (data) => API.post('/gatepasses/apply-mobile', data),
-  getPublicStatus: (passId) => API.get(`/gatepasses/public-status/${passId}`),
+  getPublicStatus: (passId) =>
+    API.get(`/gatepasses/public-status/${passId}`),
   getMyRequests: () => API.get('/gatepasses/my-requests'),
-  getAll: (params) => API.get('/gatepasses', { params: { limit: 100, ...params } }),
+  getAll: (params) =>
+    API.get('/gatepasses', {
+      params: { limit: 100, ...params },
+    }),
   getById: (id) => API.get(`/gatepasses/${id}`),
-  updateStatus: (id, data) => API.put(`/gatepasses/${id}/status`, data),
+  updateStatus: (id, data) =>
+    API.put(`/gatepasses/${id}/status`, data),
   verifyQR: (data) => API.post('/gatepasses/verify-qr', data),
   recordReturn: (data) => API.post('/gatepasses/record-return', data),
-  searchStudent: (query) => API.get('/gatepasses/search-student', { params: { query } }),
+  searchStudent: (query) =>
+    API.get('/gatepasses/search-student', {
+      params: { query },
+    }),
   delete: (id) => API.delete(`/gatepasses/${id}`),
 };
 
-// ─── Visitors ─────────────────────────────────────────────────────────────────
+// ─── Visitors ─────────────────────────────────────────────────────
 export const visitorAPI = {
   register: (data) => API.post('/visitors/register', data),
   getMyVisitors: () => API.get('/visitors/my-visitors'),
   getAll: (params) => API.get('/visitors', { params }),
   getById: (id) => API.get(`/visitors/${id}`),
-  updateStatus: (id, data) => API.put(`/visitors/${id}/status`, data),
+  updateStatus: (id, data) =>
+    API.put(`/visitors/${id}/status`, data),
   verifyQR: (data) => API.post('/visitors/verify-qr', data),
-  search: (query) => API.get('/visitors/search/records', { params: { query } }),
+  search: (query) =>
+    API.get('/visitors/search/records', {
+      params: { query },
+    }),
   delete: (id) => API.delete(`/visitors/${id}`),
 };
 
-// ─── Notifications ────────────────────────────────────────────────────────────
+// ─── Notifications ────────────────────────────────────────────────
 export const notificationAPI = {
   getAll: (params) => API.get('/notifications', { params }),
-  getUnreadCount: (params) => API.get('/notifications/unread-count', { params }),
+  getUnreadCount: (params) =>
+    API.get('/notifications/unread-count', { params }),
   markRead: (id) => API.put(`/notifications/${id}/read`),
   markAllRead: () => API.put('/notifications/mark-all-read'),
 };
-
 
 export default API;
